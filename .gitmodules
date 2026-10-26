@@ -1,0 +1,4 @@
+[submodule "Vanadium"]
+	path = Vanadium
+	url = https://github.com/GrapheneOS/Vanadium.git
+	branch = main
