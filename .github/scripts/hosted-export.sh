@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-_out="${GITHUB_WORKSPACE}/build-tree.tar.zst"
+: "${UGC_WORK:=/mnt/ugc}"
+_arch="${ARCH:-arm64}"
+_out="${GITHUB_WORKSPACE}/build-tree-${_arch}.tar.zst"
 rm -f "$_out"
 
 echo "::group::packing build tree"

@@ -30,13 +30,25 @@ runs:
         UGC_WORK: /mnt/ugc
       run: .github/scripts/hosted-prepare.sh
 
+    - name: Download build tree (resume from run ${{ inputs.source_run_id }})
+      if: inputs.source_run_id != ''
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: build-tree-${{ inputs.architecture }}.tar.zst
+        run-id: ${{ inputs.source_run_id }}
+        github-token: ${{ github.token }}
+
+    - name: Download build tree
+      if: inputs.source_run_id == ''
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: build-tree-${{ inputs.architecture }}.tar.zst
+
     - name: Restore build tree
       shell: bash
       env:
         UGC_WORK: /mnt/ugc
         ARCH: ${{ inputs.architecture }}
-        SOURCE_RUN_ID: ${{ inputs.source_run_id }}
-        GH_TOKEN: ${{ github.token }}
       run: .github/scripts/hosted-import.sh
 
     - name: Build
@@ -58,17 +70,18 @@ runs:
       shell: bash
       env:
         UGC_WORK: /mnt/ugc
+        ARCH: ${{ inputs.architecture }}
       run: .github/scripts/hosted-export.sh
 
     - name: Save build tree
       if: steps.build.outputs.status == 'running'
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
-        name: build-tree-${{ inputs.architecture }}
-        path: build-tree.tar.zst
+        name: build-tree-${{ inputs.architecture }}.tar.zst
+        path: build-tree-${{ inputs.architecture }}.tar.zst
         retention-days: 1
         overwrite: true
-        compression-level: 0
+        archive: false
 
     # - name: Stage keystore from secrets
     #   if: steps.build.outputs.status == 'completed'
@@ -103,7 +116,7 @@ runs:
 
     # - name: Upload release
     #   if: steps.build.outputs.status == 'completed'
-    #   uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+    #   uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
     #   with:
     #     name: release-${{ inputs.architecture }}
     #     path: /mnt/ugc/releases/${{ env.UGC_VERSION }}/
@@ -113,7 +126,7 @@ runs:
 
     - name: Upload
       if: steps.build.outputs.status == 'completed'
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: ${{ inputs.architecture }}
         path: /mnt/ugc/src/out/Default/chrome_public_apk
