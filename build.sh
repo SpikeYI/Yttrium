@@ -283,7 +283,9 @@ if [ "$RESUME" != y ]; then
   git am --whitespace=nowarn --keep-non-patch ../Vanadium/patches/*.patch
   source ../patch.sh
   popd
-  DEPOT_TOOLS_UPDATE=0 gclient runhooks
+  python3 Vanadium/tools/filter_lists/filter_list_download.py --output src/vanadium/android_config/filter_lists/filter_lists_easylist.txt --urls https://raw.githubusercontent.com/easylist/antiadblockfilters/master/antiadblockfilters/antiadblock_english.txt \
+      https://raw.githubusercontent.com/easylist/easylist/gh-pages/easylist.txt https://raw.githubusercontent.com/easylist/easylist/gh-pages/easyprivacy.txt https://raw.githubusercontent.com/easylist/easylistchina/master/easylistchina.txt
+  python3 Vanadium/tools/common/apply_subprojects_patches.py --base_patch_dir Vanadium/subprojects_patches --src_dir src
 
   ## Configure output folder
   export PATH=$OLD_PATH  # remove depot_tools from PATH
