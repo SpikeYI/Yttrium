@@ -27,29 +27,4 @@ solutions = [
     },
   },
 ]
-hooks = [
-  {
-    'name': 'fetch_filter_lists',
-    'condition': 'checkout_android',
-    'action': ['python3',
-              'Vanadium/tools/filter_lists/filter_list_download.py',
-              '--output',
-              'src/vanadium/android_config/filter_lists/filter_lists_easylist.txt',
-              '--urls',
-              'https://raw.githubusercontent.com/easylist/antiadblockfilters/master/antiadblockfilters/antiadblock_english.txt',
-              'https://raw.githubusercontent.com/easylist/easylist/gh-pages/easylist.txt',
-              'https://raw.githubusercontent.com/easylist/easylist/gh-pages/easyprivacy.txt',
-              'https://raw.githubusercontent.com/easylist/easylistchina/master/easylistchina.txt']
-  },
-  {
-    'name': 'apply_subprojects_patches',
-    'condition': 'checkout_android',
-    'action': ['python3',
-              'Vanadium/tools/common/apply_subprojects_patches.py',
-              '--base_patch_dir',
-              'Vanadium/subprojects_patches',
-              '--src_dir',
-              'src']
-  },
-]
 target_os = ['android']
