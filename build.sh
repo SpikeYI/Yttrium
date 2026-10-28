@@ -188,7 +188,7 @@ function prepare_repos {
   python3 src/build/linux/sysroot_scripts/install-sysroot.py --arch=amd64
   python3 src/build/linux/sysroot_scripts/install-sysroot.py --arch=i386
   python3 src/v8/tools/builtins-pgo/download_profiles.py download --depot-tools "$(pwd -P)/depot_tools" --check-v8-revision --quiet || return $?
-  cp misc/UnindexedRules src/third_party/subresource-filter-ruleset/data
+  # cp misc/UnindexedRules src/third_party/subresource-filter-ruleset/data
 }
 
 function reverse_change {
