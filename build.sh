@@ -11,11 +11,11 @@ trichrome_webview_target=trichrome_webview_apk
 trichrome_webview_64_target=trichrome_webview_64_apk
 all=all
 
-if [ -z "${VERSION:-}" ]; then
-    VERSION=$(grep -m1 -o '[0-9]\+\(\.[0-9]\+\)\{3\}' Vanadium/args.gn)
-    echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+if [[ -f src/chrome/VERSION ]]; then
+    chromium_version=$(paste -sd. <(cut -d= -f2 chrome/VERSION))
+else
+    chromium_version=$(grep -m1 -o '[0-9]\+\(\.[0-9]\+\)\{3\}' Vanadium/args.gn)
 fi
-chromium_version="$VERSION"
 chromium_revision=1
 chromium_android_revision=1
 
