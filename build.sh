@@ -11,7 +11,11 @@ trichrome_webview_target=trichrome_webview_apk
 trichrome_webview_64_target=trichrome_webview_64_apk
 all=all
 
-export chromium_version=$(grep -m1 -o '[0-9]\+\(\.[0-9]\+\)\{3\}' Vanadium/args.gn)
+if [ -z "${VERSION:-}" ]; then
+    VERSION=$(grep -m1 -o '[0-9]\+\(\.[0-9]\+\)\{3\}' Vanadium/args.gn)
+    echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+fi
+chromium_version="$VERSION"
 chromium_revision=1
 chromium_android_revision=1
 
@@ -204,7 +208,7 @@ stamp_file="src/${output_folder}/.build-stamp"
 
 build_fingerprint() {
   printf '%s\n' "${chromium_version}-${chromium_android_revision}"
-  ( find Vanadium/patches -name '*.patch' -type f | sort | xargs cat ) | sha256sum | cut -d' ' -f1
+  # ( find Vanadium/patches -name '*.patch' -type f | sort | xargs cat ) | sha256sum | cut -d' ' -f1
   cat build.sh patch.sh .gclient args.gn 2>/dev/null | sha256sum | cut -d' ' -f1
 }
 
