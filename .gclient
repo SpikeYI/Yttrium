@@ -36,10 +36,10 @@ hooks = [
               '--output',
               'src/vanadium/android_config/filter_lists/filter_lists_easylist.txt',
               '--urls',
-              'https://easylist-downloads.adblockplus.org/antiadblockfilters.txt',
-              'https://easylist.to/easylist/easylist.txt',
-              'https://easylist.to/easylist/easyprivacy.txt',
-              'https://easylist-downloads.adblockplus.org/easylistchina.txt']
+              'https://raw.githubusercontent.com/easylist/antiadblockfilters/master/antiadblockfilters/antiadblock_english.txt',
+              'https://raw.githubusercontent.com/easylist/easylist/gh-pages/easylist.txt',
+              'https://raw.githubusercontent.com/easylist/easylist/gh-pages/easyprivacy.txt',
+              'https://raw.githubusercontent.com/easylist/easylistchina/master/easylistchina.txt']
   },
   {
     'name': 'apply_subprojects_patches',
