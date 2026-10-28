@@ -161,7 +161,6 @@ function prepare_repos {
 
   git config --global http.lowSpeedTime 120
   DEPOT_TOOLS_UPDATE=0 gclient sync -D --no-history --nohooks --shallow
-  DEPOT_TOOLS_UPDATE=0 gclient runhooks
   _sync_rc=$?
   git config --global http.lowSpeedTime 900
   [ $_sync_rc -eq 0 ] || return $_sync_rc
@@ -278,7 +277,11 @@ if [ "$RESUME" != y ]; then
   rm -rf Vanadium/patches/*component-updates.patch
   rm -rf Vanadium/patches/*{pdf,PDF,configs-from-config-app,config-app-parsing}*.patch
 
-  source patch.sh
+  pushd src
+  git am --whitespace=nowarn --keep-non-patch ../Vanadium/patches/*.patch
+  source ../patch.sh
+  popd
+  DEPOT_TOOLS_UPDATE=0 gclient runhooks
 
   ## Configure output folder
   export PATH=$OLD_PATH  # remove depot_tools from PATH
