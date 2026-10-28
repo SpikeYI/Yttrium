@@ -271,7 +271,9 @@ if [ ${#missing[@]} -ne 0 ]; then
 fi
 
 if [ "$RESUME" != y ]; then
-# https://grapheneos.org/build#browser-and-webview
+  git config --global user.name 'github-actions[bot]'
+  git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+  # https://grapheneos.org/build#browser-and-webview
   rm -rf Vanadium/patches/*trichrome-{apk-build-targets,browser-apk-targets}.patch
   rm -rf Vanadium/patches/*{detailed,supported}-language*.patch
   rm -rf Vanadium/patches/*component-updates.patch
