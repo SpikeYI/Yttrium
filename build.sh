@@ -1,7 +1,19 @@
 #!/usr/bin/env bash
 set -eu -o pipefail
 
-source .build_config
+chrome_modern_target=chrome_public_bundle
+trichrome_chrome_apk_target=trichrome_chrome_bundle
+trichrome_chrome_64_apk_target=trichrome_chrome_64_bundle
+trichrome_chrome_bundle_target=trichrome_chrome_bundle
+trichrome_chrome_64_bundle_target=trichrome_chrome_64_bundle
+webview_target=system_webview_apk
+trichrome_webview_target=trichrome_webview_apk
+trichrome_webview_64_target=trichrome_webview_64_apk
+all=all
+
+export chromium_version=$(grep -m1 -o '[0-9]\+\(\.[0-9]\+\)\{3\}' Vanadium/args.gn)
+chromium_revision=1
+chromium_android_revision=1
 
 # Show env
 pwd
@@ -99,7 +111,7 @@ function prepare_repos {
   git config --global http.lowSpeedLimit 1000
   git config --global http.lowSpeedTime 900
 
-  declare -a arr=("depot_tools" "src" "ungoogled-chromium" ".cipd")
+  declare -a arr=("depot_tools" "src" ".cipd")
   for dname in "${arr[@]}"
   do
     if [[ -d "$dname" ]]
@@ -110,10 +122,6 @@ function prepare_repos {
   done
 
   path_modified=false
-
-  ## Clone ungoogled-chromium repo
-  git clone https://github.com/ungoogled-software/ungoogled-chromium.git -b ${ungoogled_chromium_version}-${ungoogled_chromium_revision} \
-   || return $?
 
   CHROMIUM_SOURCE="${CHROMIUM_SOURCE:-https://chromium.googlesource.com/chromium/src.git}"
   mkdir -p src
@@ -153,6 +161,7 @@ function prepare_repos {
 
   git config --global http.lowSpeedTime 120
   DEPOT_TOOLS_UPDATE=0 gclient sync -D --no-history --nohooks --shallow
+  DEPOT_TOOLS_UPDATE=0 gclient runhooks
   _sync_rc=$?
   git config --global http.lowSpeedTime 900
   [ $_sync_rc -eq 0 ] || return $_sync_rc
@@ -195,10 +204,9 @@ uc_keystore="$PWD/../uc_keystore/uc-release-key.keystore"
 stamp_file="src/${output_folder}/.build-stamp"
 
 build_fingerprint() {
-  printf '%s\n' "${chromium_version}-${ungoogled_chromium_android_revision}"
-  ( cat patches/series; find patches -name '*.patch' -type f | sort | xargs cat ) | sha256sum | cut -d' ' -f1
-  cat build.sh .build_config .gclient android_flags.gn android_flags.release.gn \
-      android_flags.debug.gn 2>/dev/null | sha256sum | cut -d' ' -f1
+  printf '%s\n' "${chromium_version}-${chromium_android_revision}"
+  ( find Vanadium/patches -name '*.patch' -type f | sort | xargs cat ) | sha256sum | cut -d' ' -f1
+  cat build.sh patch.sh .gclient args.gn 2>/dev/null | sha256sum | cut -d' ' -f1
 }
 
 if [ "$RESUME" = y ]; then
@@ -264,55 +272,20 @@ if [ ${#missing[@]} -ne 0 ]; then
 fi
 
 if [ "$RESUME" != y ]; then
-  ## Run ungoogled-chromium scripts
-  patch -p1 --ignore-whitespace -i patches/Other/ungoogled-main-repo-fix.patch --no-backup-if-mismatch
-  # Remove the cache file if exists
-  cache_file="domsubcache.tar.gz"
-  if [[ -f ${cache_file} ]] ; then
-      rm ${cache_file}
-  fi
+# https://grapheneos.org/build#browser-and-webview
+  rm -rf Vanadium/patches/*trichrome-{apk-build-targets,browser-apk-targets}.patch
+  rm -rf Vanadium/patches/*{detailed,supported}-language*.patch
+  rm -rf Vanadium/patches/*component-updates.patch
+  rm -rf Vanadium/patches/*{pdf,PDF,configs-from-config-app,config-app-parsing}*.patch
 
-  # Ignore the pruning error
-  python3 ungoogled-chromium/utils/prune_binaries.py src ungoogled-chromium/pruning.list --keep-contingent-paths || true
-  python3 ungoogled-chromium/utils/patches.py apply src ungoogled-chromium/patches
-  python3 ungoogled-chromium/utils/domain_substitution.py apply -r ungoogled-chromium/domain_regex.list -f ungoogled-chromium/domain_substitution.list -c ${cache_file} src
-
-  # Additional Source Patches
-  ## Extra fixes for Chromium source
-  python3 ungoogled-chromium/utils/patches.py apply src patches
-  ## Second pruning list
-  pruning_list_2="pruning_2.list"
-  python3 ungoogled-chromium/utils/prune_binaries.py src ${pruning_list_2} --keep-contingent-paths || true
-  ## Second domain substitution list
-  substitution_list_2="domain_sub_2.list"
-  # Remove the cache file if exists
-  cache_file="domsubcache.tar.gz"
-  if [[ -f ${cache_file} ]] ; then
-      rm ${cache_file}
-  fi
-  python3 ungoogled-chromium/utils/domain_substitution.py apply -r ungoogled-chromium/domain_regex.list -f ${substitution_list_2} -c ${cache_file} src
-
-  psa_dat="src/components/privacy_sandbox/privacy_sandbox_attestations/preload/privacy-sandbox-attestations.dat"
-  [[ -f ${psa_dat} ]] || : > ${psa_dat}
-
-  ( cd src && git checkout HEAD -- \
-      components/signin/public/base/signin_pref_names.h \
-      components/signin/public/base/signin_pref_names.cc \
-      components/safe_browsing/core/common/safe_browsing_prefs.h \
-      components/safe_browsing/core/common/safe_browsing_prefs.cc 2>/dev/null ) || true
+  source patch.sh
 
   ## Configure output folder
   export PATH=$OLD_PATH  # remove depot_tools from PATH
   pushd src
   mkdir -p "${output_folder}"
-  if [ "$DEBUG" = n ] ; then
-      cat ../ungoogled-chromium/flags.gn ../android_flags.gn ../android_flags.release.gn > "${output_folder}"/args.gn
-      if [ -f ../../uc_keystore/keystore.gn ]; then
-          cat ../../uc_keystore/keystore.gn >> "${output_folder}"/args.gn
-      fi
-  else
-      cat ../android_flags.gn ../android_flags.debug.gn > "${output_folder}"/args.gn
-  fi
+  cp ../args.gn "${output_folder}"/args.gn
+  sed -i '/^[[:space:]]*target_cpu/d' "${output_folder}"/args.gn
   printf '\ntarget_cpu="'"$ARCH"'"\n' >> "${output_folder}"/args.gn
   # Trichrome doesn't forward version_name to base in bundle
   printf '\nandroid_override_version_name="'"${chromium_version}"'"\n' >> "${output_folder}"/args.gn
@@ -321,7 +294,7 @@ if [ "$RESUME" != y ]; then
   popd
 
   { echo "build      $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    echo "version    ${chromium_version}-${ungoogled_chromium_android_revision}"
+    echo "version    ${chromium_version}-${chromium_android_revision}"
     echo "commit     $(git rev-parse HEAD 2>/dev/null || echo unknown)"
     echo "fingerprint $(build_fingerprint | sha256sum | cut -d' ' -f1)"
     echo "session    $(date -u +%Y-%m-%dT%H:%M:%SZ)  run ${GITHUB_RUN_NUMBER:-local}  clean start"
@@ -371,45 +344,48 @@ apk_out_folder="apk_out"
 mkdir -p "${apk_out_folder}"
 pushd src
 ninja_bin="third_party/ninja/ninja"
-if [[ "$TARGET" != "all" ]]; then
-  if [ "${TARGET_EXPANDED}" = "${chrome_modern_target}" ]; then
-    if [[ "$ARCH" == "arm64" ]]; then
-      ninja_build "${output_folder}" "${TARGET_EXPANDED}" chrome_public_apk system_webview_64_apk
-    elif [[ "$ARCH" == "arm" ]]; then
-      ninja_build "${output_folder}" "${TARGET_EXPANDED}" chrome_public_apk system_webview_apk
-    else
-      ninja_build "${output_folder}" "${TARGET_EXPANDED}" chrome_public_apk
-    fi
-  else
-    ninja_build "${output_folder}" "${TARGET_EXPANDED}"
-  fi
-  if [[ "$TARGET" == "trichrome_chrome_bundle_target" ]] || [[ "$TARGET" == "chrome_modern_target" ]] || [[ "$TARGET" == "trichrome_chrome_apk_target" ]] || [[ "$TARGET" == "trichrome_webview_target" ]]; then
-    if [ -f "$uc_keystore" ]; then
-      ../bundle_generate_apk.sh -o "${output_folder}" -a "${ARCH}" -t "${TARGET_EXPANDED}"
-    fi
-  fi
-  if [[ "$TARGET" != "webview_target" ]]; then
-    _apk_src="${output_folder}/apks/release"
-    [ -d "${_apk_src}" ] || _apk_src="${output_folder}/apks"
-    find "${_apk_src}" -maxdepth 1 -iname "*.apk" -exec cp -f {} ../"${apk_out_folder}" \;
-  else
-    find ${output_folder}/apks -iname "*.apk" -exec cp -f {} ../"${apk_out_folder}" \;
-  fi
-else
-  ninja_build "out/Default" "$chrome_modern_target"
-  if [ -f "$uc_keystore" ]; then
-    ../bundle_generate_apk.sh -o "${output_folder}" -a "${ARCH}" -t "$chrome_modern_target"
-  fi
-  ninja_build "out/Default" "$webview_target"
-  ninja_build "out/Default" "$trichrome_webview_target"
-  find ${output_folder}/apks/release -iname "*.apk" -exec cp -f {} ../"${apk_out_folder}" \;
 
-  # arm64+TriChrome needs to be run separately, otherwise it will fail
-  if [[ "$ARCH" != "arm64" ]]; then
-    ninja_build "${output_folder}" "$trichrome_chrome_apk_target"
-    find ${output_folder}/apks/release -iname "*.apk" -exec cp -f {} ../"${apk_out_folder}" \;
-  fi
-fi
+ninja_build "${output_folder}" chrome_public_apk
+
+# if [[ "$TARGET" != "all" ]]; then
+#   if [ "${TARGET_EXPANDED}" = "${chrome_modern_target}" ]; then
+#     if [[ "$ARCH" == "arm64" ]]; then
+#       ninja_build "${output_folder}" "${TARGET_EXPANDED}" chrome_public_apk system_webview_64_apk
+#     elif [[ "$ARCH" == "arm" ]]; then
+#       ninja_build "${output_folder}" "${TARGET_EXPANDED}" chrome_public_apk system_webview_apk
+#     else
+#       ninja_build "${output_folder}" "${TARGET_EXPANDED}" chrome_public_apk
+#     fi
+#   else
+#     ninja_build "${output_folder}" "${TARGET_EXPANDED}"
+#   fi
+#   if [[ "$TARGET" == "trichrome_chrome_bundle_target" ]] || [[ "$TARGET" == "chrome_modern_target" ]] || [[ "$TARGET" == "trichrome_chrome_apk_target" ]] || [[ "$TARGET" == "trichrome_webview_target" ]]; then
+#     if [ -f "$uc_keystore" ]; then
+#       ../bundle_generate_apk.sh -o "${output_folder}" -a "${ARCH}" -t "${TARGET_EXPANDED}"
+#     fi
+#   fi
+#   if [[ "$TARGET" != "webview_target" ]]; then
+#     _apk_src="${output_folder}/apks/release"
+#     [ -d "${_apk_src}" ] || _apk_src="${output_folder}/apks"
+#     find "${_apk_src}" -maxdepth 1 -iname "*.apk" -exec cp -f {} ../"${apk_out_folder}" \;
+#   else
+#     find ${output_folder}/apks -iname "*.apk" -exec cp -f {} ../"${apk_out_folder}" \;
+#   fi
+# else
+#   ninja_build "out/Default" "$chrome_modern_target"
+#   if [ -f "$uc_keystore" ]; then
+#     ../bundle_generate_apk.sh -o "${output_folder}" -a "${ARCH}" -t "$chrome_modern_target"
+#   fi
+#   ninja_build "out/Default" "$webview_target"
+#   ninja_build "out/Default" "$trichrome_webview_target"
+#   find ${output_folder}/apks/release -iname "*.apk" -exec cp -f {} ../"${apk_out_folder}" \;
+
+#   # arm64+TriChrome needs to be run separately, otherwise it will fail
+#   if [[ "$ARCH" != "arm64" ]]; then
+#     ninja_build "${output_folder}" "$trichrome_chrome_apk_target"
+#     find ${output_folder}/apks/release -iname "*.apk" -exec cp -f {} ../"${apk_out_folder}" \;
+#   fi
+# fi
 popd
 
 printf 'session    %s  run %s  BUILD COMPLETE\n' \

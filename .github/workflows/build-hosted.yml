@@ -8,9 +8,9 @@ on:
       architecture:
         description: 'architecture'
         required: true
-        default: 'all'
+        default: 'arm64'
         type: choice
-        options: [all, arm64, arm]
+        options: [arm64, all, arm]
       chromium_source:
         description: 'chromium source'
         required: true
@@ -42,7 +42,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        architecture: ${{ (github.event_name == 'push' || inputs.architecture == 'all') && fromJSON('["arm64","arm"]') || fromJSON(format('["{0}"]', inputs.architecture)) }}
+        architecture: ${{ (github.event_name == 'push' || inputs.architecture == 'arm64') && fromJSON('["arm64"]') || fromJSON(format('["{0}"]', inputs.architecture)) }}
     permissions:
       contents: read
       actions: read
@@ -56,33 +56,33 @@ jobs:
       source_run_id: ${{ inputs.source_run_id }}
       threads: ${{ fromJSON(inputs.threads || '0') }}
 
-  release:
-    needs: build
-    if: ${{ (github.event_name == 'push' && github.ref_name || inputs.release_name) != '' && needs.build.result == 'success' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          pattern: release-*
-          path: rel
-      - shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          NAME: ${{ github.event_name == 'push' && github.ref_name || inputs.release_name }}
-        run: |
-          files=()
-          while IFS= read -r f; do files+=("$f"); done < <(find rel -name 'ChromePublic_*.apk' -o -name 'ChromePublic_arm64.aab' -o -name 'SystemWebView_*.apk')
-          [ "${#files[@]}" -gt 0 ] || { echo "FATAL: no release files found"; exit 1; }
-          for f in "${files[@]}"; do
-              case "$f" in
-                  *.apk) [ -f "${f}.idsig" ] || { echo "FATAL: $f is not release-signed, refusing to publish"; exit 1; } ;;
-              esac
-          done
-          printf 'releasing %s with:\n' "$NAME"
-          printf '  %s\n' "${files[@]}"
-          gh release create "$NAME" "${files[@]}" \
-              --repo "$GITHUB_REPOSITORY" \
-              --title "$NAME" \
-              --notes "Please see [CHANGELOG](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/master/CHANGELOG.md) for latest updates."
+  # release:
+  #   needs: build
+  #   if: ${{ (github.event_name == 'push' && github.ref_name || inputs.release_name) != '' && needs.build.result == 'success' }}
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: write
+  #   steps:
+  #     - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+  #       with:
+  #         pattern: release-*
+  #         path: rel
+  #     - shell: bash
+  #       env:
+  #         GH_TOKEN: ${{ github.token }}
+  #         NAME: ${{ github.event_name == 'push' && github.ref_name || inputs.release_name }}
+  #       run: |
+  #         files=()
+  #         while IFS= read -r f; do files+=("$f"); done < <(find rel -name 'ChromePublic_*.apk' -o -name 'ChromePublic_arm64.aab' -o -name 'SystemWebView_*.apk')
+  #         [ "${#files[@]}" -gt 0 ] || { echo "FATAL: no release files found"; exit 1; }
+  #         for f in "${files[@]}"; do
+  #             case "$f" in
+  #                 *.apk) [ -f "${f}.idsig" ] || { echo "FATAL: $f is not release-signed, refusing to publish"; exit 1; } ;;
+  #             esac
+  #         done
+  #         printf 'releasing %s with:\n' "$NAME"
+  #         printf '  %s\n' "${files[@]}"
+  #         gh release create "$NAME" "${files[@]}" \
+  #             --repo "$GITHUB_REPOSITORY" \
+  #             --title "$NAME" \
+  #             --notes "Please see [CHANGELOG](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/master/CHANGELOG.md) for latest updates."

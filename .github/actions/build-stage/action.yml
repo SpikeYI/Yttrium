@@ -70,43 +70,53 @@ runs:
         overwrite: true
         compression-level: 0
 
-    - name: Stage keystore from secrets
-      if: steps.build.outputs.status == 'completed'
-      shell: bash
-      env:
-        KEYSTORE_B64: ${{ inputs.keystore_b64 }}
-        KEYSTORE_PASS: ${{ inputs.keystore_pass }}
-      run: |
-        if [ -n "${KEYSTORE_B64:-}" ]; then
-          mkdir -p "$RUNNER_TEMP/ks"
-          chmod 700 "$RUNNER_TEMP/ks"
-          printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/ks/release.jks"
-          printf '%s' "$KEYSTORE_PASS" > "$RUNNER_TEMP/ks/pass"
-          chmod 600 "$RUNNER_TEMP/ks"/*
-          echo "UGC_KEYSTORE=$RUNNER_TEMP/ks/release.jks"   >> "$GITHUB_ENV"
-          echo "UGC_KEYSTORE_PASSFILE=$RUNNER_TEMP/ks/pass" >> "$GITHUB_ENV"
-        fi
+    # - name: Stage keystore from secrets
+    #   if: steps.build.outputs.status == 'completed'
+    #   shell: bash
+    #   env:
+    #     KEYSTORE_B64: ${{ inputs.keystore_b64 }}
+    #     KEYSTORE_PASS: ${{ inputs.keystore_pass }}
+    #   run: |
+    #     if [ -n "${KEYSTORE_B64:-}" ]; then
+    #       mkdir -p "$RUNNER_TEMP/ks"
+    #       chmod 700 "$RUNNER_TEMP/ks"
+    #       printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/ks/release.jks"
+    #       printf '%s' "$KEYSTORE_PASS" > "$RUNNER_TEMP/ks/pass"
+    #       chmod 600 "$RUNNER_TEMP/ks"/*
+    #       echo "UGC_KEYSTORE=$RUNNER_TEMP/ks/release.jks"   >> "$GITHUB_ENV"
+    #       echo "UGC_KEYSTORE_PASSFILE=$RUNNER_TEMP/ks/pass" >> "$GITHUB_ENV"
+    #     fi
 
-    - name: Sign and assemble
-      if: steps.build.outputs.status == 'completed'
-      shell: bash
-      run: |
-        cd /mnt/ugc
-        build/release.sh "${{ inputs.architecture }}"
-        . ./.build_config
-        echo "UGC_VERSION=${chromium_version}-${ungoogled_chromium_android_revision}" >> "$GITHUB_ENV"
+    # - name: Sign and assemble
+    #   if: steps.build.outputs.status == 'completed'
+    #   shell: bash
+    #   run: |
+    #     cd /mnt/ugc
+    #     build/release.sh "${{ inputs.architecture }}"
+    #     . ./.build_config
+    #     echo "UGC_VERSION=${chromium_version}-${ungoogled_chromium_android_revision}" >> "$GITHUB_ENV"
 
-    - name: Remove staged keystore
-      if: always()
-      shell: bash
-      run: rm -rf "$RUNNER_TEMP/ks"
+    # - name: Remove staged keystore
+    #   if: always()
+    #   shell: bash
+    #   run: rm -rf "$RUNNER_TEMP/ks"
 
-    - name: Upload release
+    # - name: Upload release
+    #   if: steps.build.outputs.status == 'completed'
+    #   uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+    #   with:
+    #     name: release-${{ inputs.architecture }}
+    #     path: /mnt/ugc/releases/${{ env.UGC_VERSION }}/
+    #     retention-days: 14
+    #     overwrite: true
+    #     compression-level: 0
+
+    - name: Upload
       if: steps.build.outputs.status == 'completed'
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
       with:
-        name: release-${{ inputs.architecture }}
-        path: /mnt/ugc/releases/${{ env.UGC_VERSION }}/
+        name: ${{ inputs.architecture }}
+        path: /mnt/ugc/src/out/Default/chrome_public_apk
         retention-days: 14
         overwrite: true
         compression-level: 0
