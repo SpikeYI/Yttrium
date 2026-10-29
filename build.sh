@@ -136,9 +136,11 @@ function prepare_repos {
   git fetch --depth 1 --no-tags origin "${depot_tools_commit}" || return $?
   git reset --hard FETCH_HEAD
   popd
+
   OLD_PATH=$PATH
   export PATH="$(pwd -P)/depot_tools:$PATH"
   export PYTHONPATH="$(pwd -P)/depot_tools${PYTHONPATH:+:$PYTHONPATH}"
+  ensure_bootstrap # need to initialize depot_tools
   path_modified=true
   rm -rf src/third_party/depot_tools
   ln -s "$(pwd -P)/depot_tools" src/third_party/depot_tools
@@ -242,7 +244,7 @@ if [ "$RESUME" != y ]; then
   git am --whitespace=nowarn --keep-non-patch ../Vanadium/patches/*.patch
   source ../patch.sh
 
-  DEPOT_TOOLS_UPDATE=0 gclient runhooks
+  gclient runhooks
 
   mkdir -p "${output_folder}"
   cp ../args.gn "${output_folder}"/args.gn
