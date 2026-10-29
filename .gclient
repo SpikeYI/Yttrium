@@ -18,13 +18,40 @@ solutions = [
         "src/third_party/libFuzzer/src": None,
         "src/third_party/libprotobuf-mutator/src": None,
         "src/third_party/webdriver/pylib": None,
+        "src/third_party/angle/third_party/VK-GL-CTS/src": None,
         "src/chrome/test/data/perf/canvas_bench": None,
         "src/chrome/test/data/perf/frame_rate/content": None,
     },
     "custom_vars": {
+        "checkout_pgo_profiles": True,
         "checkout_configuration": "small",
         "checkout_telemetry_dependencies": False,
     },
+  },
+]
+hooks = [
+  {
+    'name': 'fetch_filter_lists',
+    'condition': 'checkout_android',
+    'action': ['python3',
+              'Vanadium/tools/filter_lists/filter_list_download.py',
+              '--output',
+              'src/vanadium/android_config/filter_lists/filter_lists_easylist.txt',
+              '--urls',
+              'https://raw.githubusercontent.com/easylist/antiadblockfilters/master/antiadblockfilters/antiadblock_english.txt',
+              'https://raw.githubusercontent.com/easylist/easylist/gh-pages/easylist.txt',
+              'https://raw.githubusercontent.com/easylist/easylist/gh-pages/easyprivacy.txt',
+              'https://raw.githubusercontent.com/easylist/easylistchina/master/easylistchina.txt']
+  },
+  {
+    'name': 'apply_subprojects_patches',
+    'condition': 'checkout_android',
+    'action': ['python3',
+              'Vanadium/tools/common/apply_subprojects_patches.py',
+              '--base_patch_dir',
+              'Vanadium/subprojects_patches',
+              '--src_dir',
+              'src']
   },
 ]
 target_os = ['android']

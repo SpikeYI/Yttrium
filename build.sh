@@ -2,13 +2,7 @@
 set -eu -o pipefail
 
 chrome_modern_target=chrome_public_bundle
-trichrome_chrome_apk_target=trichrome_chrome_bundle
-trichrome_chrome_64_apk_target=trichrome_chrome_64_bundle
-trichrome_chrome_bundle_target=trichrome_chrome_bundle
-trichrome_chrome_64_bundle_target=trichrome_chrome_64_bundle
 webview_target=system_webview_apk
-trichrome_webview_target=trichrome_webview_apk
-trichrome_webview_64_target=trichrome_webview_64_apk
 all=all
 
 if [[ -f src/chrome/VERSION ]]; then
@@ -89,25 +83,12 @@ if [[ "$ARCH" != "arm64" ]] && [[ "$ARCH" != "arm" ]] && [[ "$ARCH" != "x86" ]];
     exit 4
 fi
 
-if [[ "$TARGET" != "chrome_modern_target" ]] && [[ "$TARGET" != "trichrome_chrome_apk_target" ]] && [[ "$TARGET" != "webview_target" ]] && [[ "$TARGET" != "trichrome_webview_target" ]] && [[ "$TARGET" != "all" ]]; then
+if [[ "$TARGET" != "chrome_modern_target" ]] && [[ "$TARGET" != "webview_target" ]] && [[ "$TARGET" != "all" ]]; then
     echo "Wrong target"
     exit 5
 fi
 
-# 64-bit TriChrome
-if [[ "$ARCH" == "arm64" ]]; then
-  if [[ "$TARGET" == "trichrome_chrome_apk_target" ]]; then
-    TARGET_EXPANDED=${trichrome_chrome_64_apk_target}
-  elif [[ "$TARGET" == "trichrome_webview_target" ]]; then
-    TARGET_EXPANDED=${trichrome_webview_64_target}
-  else
-    TARGET_EXPANDED=${!TARGET}
-  fi
-else
-  TARGET_EXPANDED=${!TARGET}
-fi
-
-echo "arch: $ARCH, target: $TARGET, target expanded: ${TARGET_EXPANDED}, debug: $DEBUG, local sdk: $LOCAL_SDK"
+echo "arch: $ARCH, target: $TARGET, debug: $DEBUG, local sdk: $LOCAL_SDK"
 
 path_modified=false
 
@@ -159,40 +140,13 @@ function prepare_repos {
   export PATH="$(pwd -P)/depot_tools:$PATH"
   export PYTHONPATH="$(pwd -P)/depot_tools${PYTHONPATH:+:$PYTHONPATH}"
   path_modified=true
-  pushd src/third_party
-  ln -s ../../depot_tools
-  popd
+  ln -sfn depot_tools src/third_party/depot_tools
 
   git config --global http.lowSpeedTime 120
   DEPOT_TOOLS_UPDATE=0 gclient sync -D --no-history --nohooks --shallow
   _sync_rc=$?
   git config --global http.lowSpeedTime 900
   [ $_sync_rc -eq 0 ] || return $_sync_rc
-
-  ( src/third_party/node/update_npm_deps ) || return $?
-  _rollup_pkg="src/third_party/devtools-frontend/src/node_modules/rollup/package.json"
-  if [ -f "${_rollup_pkg}" ]; then
-    ROLLUP_VER=$(grep '"version"' "${_rollup_pkg}" | head -1 | cut -d'"' -f4)
-    _rollup_dest="src/third_party/devtools-frontend/src/node_modules/@rollup/rollup-linux-x64-gnu"
-    if [ ! -f "${_rollup_dest}/rollup.linux-x64-gnu.node" ]; then
-      curl -sL "https://registry.npmjs.org/@rollup/rollup-linux-x64-gnu/-/rollup-linux-x64-gnu-${ROLLUP_VER}.tgz" -o /tmp/rollup-native.tgz || return $?
-      rm -rf "${_rollup_dest}"; mkdir -p "${_rollup_dest}"
-      tar xzf /tmp/rollup-native.tgz -C "${_rollup_dest}" --strip-components=1 || return $?
-    fi
-    [ -f "${_rollup_dest}/rollup.linux-x64-gnu.node" ] || { echo "FATAL: rollup native module missing"; return 1; }
-  fi
-
-  python3 src/build/util/lastchange.py -o src/build/util/LASTCHANGE
-  python3 src/tools/download_optimization_profile.py --newest_state=src/chrome/android/profiles/newest.txt --local_state=src/chrome/android/profiles/local.txt --output_name=src/chrome/android/profiles/afdo.prof --gs_url_base=chromeos-prebuilt/afdo-job/llvm || return $?
-  python3 src/tools/download_optimization_profile.py --newest_state=src/chrome/android/profiles/arm.newest.txt --local_state=src/chrome/android/profiles/arm.local.txt --output_name=src/chrome/android/profiles/arm.afdo.prof --gs_url_base=chromeos-prebuilt/afdo-job/llvm || return $?
-  python3 src/build/util/lastchange.py -m GPU_LISTS_VERSION --revision-id-only --header src/gpu/config/gpu_lists_version.h
-  python3 src/build/util/lastchange.py -m SKIA_COMMIT_HASH -s src/third_party/skia --header src/skia/ext/skia_commit_hash.h
-  python3 src/build/util/lastchange.py -m DAWN_COMMIT_HASH -s src/third_party/dawn --revision src/gpu/webgpu/DAWN_VERSION --header src/gpu/webgpu/dawn_commit_hash.h
-  python3 src/tools/clang/scripts/update.py
-  python3 src/build/linux/sysroot_scripts/install-sysroot.py --arch=amd64
-  python3 src/build/linux/sysroot_scripts/install-sysroot.py --arch=i386
-  python3 src/v8/tools/builtins-pgo/download_profiles.py download --depot-tools "$(pwd -P)/depot_tools" --check-v8-revision --quiet || return $?
-  # cp misc/UnindexedRules src/third_party/subresource-filter-ruleset/data
 }
 
 function reverse_change {
@@ -286,22 +240,15 @@ if [ "$RESUME" != y ]; then
   pushd src
   git am --whitespace=nowarn --keep-non-patch ../Vanadium/patches/*.patch
   source ../patch.sh
-  popd
-  python3 Vanadium/tools/filter_lists/filter_list_download.py --output src/vanadium/android_config/filter_lists/filter_lists_easylist.txt --urls https://raw.githubusercontent.com/easylist/antiadblockfilters/master/antiadblockfilters/antiadblock_english.txt \
-      https://raw.githubusercontent.com/easylist/easylist/gh-pages/easylist.txt https://raw.githubusercontent.com/easylist/easylist/gh-pages/easyprivacy.txt https://raw.githubusercontent.com/easylist/easylistchina/master/easylistchina.txt
-  python3 Vanadium/tools/common/apply_subprojects_patches.py --base_patch_dir Vanadium/subprojects_patches --src_dir src
 
-  ## Configure output folder
-  export PATH=$OLD_PATH  # remove depot_tools from PATH
-  pushd src
+  gclient runhooks
+
   mkdir -p "${output_folder}"
   cp ../args.gn "${output_folder}"/args.gn
   sed -i '/^[[:space:]]*target_cpu/d' "${output_folder}"/args.gn
   printf '\ntarget_cpu="'"$ARCH"'"\n' >> "${output_folder}"/args.gn
-  # Trichrome doesn't forward version_name to base in bundle
-  printf '\nandroid_override_version_name="'"${chromium_version}"'"\n' >> "${output_folder}"/args.gn
 
-  buildtools/linux64/gn gen "${output_folder}" --fail-on-unused-args
+  gn gen "${output_folder}"
   popd
 
   { echo "build      $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -318,86 +265,45 @@ if [ "$PREPARE_ONLY" = y ]; then
     exit 0
 fi
 
-## Set compiler flags
-export AR=${AR:=llvm-ar}
-export NM=${NM:=llvm-nm}
-export CC=${CC:=clang}
-export CXX=${CXX:=clang++}
-export CCACHE_CPP2=yes
-export CCACHE_SLOPPINESS=time_macros
-
 ## Build
-case "${NINJA_JOBS:-0}" in
-    ''|*[!0-9]*) NINJA_JOBS=0 ;;
-esac
-if [ "${NINJA_JOBS:-0}" -eq 0 ]; then
-    NINJA_JOBS=$(nproc)
-fi
+export PATH="$(pwd -P)/depot_tools:$PATH"
 
-ninja_build() {
-  _dir="$1"
+autoninja_build() {
+  local dir="$1"
   shift
-  if [ -z "${NINJA_TIMEOUT:-}" ]; then
-    "$ninja_bin" ${NINJA_JOBS:+-j ${NINJA_JOBS}} -C "$_dir" "$@"
-    return
+
+  # autoninja 会自动探测 args.gn 并动态计算最合理的并发数与后端调度 Siso/Ninja; 仅在显式设置 NINJA_JOBS 时手动指定 -j
+  local cmd=(autoninja -C "$dir")
+  if [ -n "${NINJA_JOBS:-}" ]; then
+    cmd+=(-j "$NINJA_JOBS")
   fi
-  _rc=0
-  timeout -k 5m -s INT "$NINJA_TIMEOUT" \
-    "$ninja_bin" ${NINJA_JOBS:+-j ${NINJA_JOBS}} -C "$_dir" "$@" || _rc=$?
-  if [ "$_rc" = 124 ] || [ "$_rc" = 137 ]; then
-    echo "ninja reached the ${NINJA_TIMEOUT} budget with work remaining"
+  cmd+=("$@")
+
+  # 无超时限制直接前台执行
+  if [ -z "${NINJA_TIMEOUT:-}" ]; then
+    "${cmd[@]}"
+    return $?
+  fi
+
+  local rc=0
+  # 发送 SIGINT 触发 Siso/Ninja 优雅退出，确保 build graph、.ninja_log 与缓存完整落盘
+  timeout -k 5m -s INT "$NINJA_TIMEOUT" "${cmd[@]}" || rc=$?
+
+  if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+    echo "autoninja reached the ${NINJA_TIMEOUT} budget with work remaining."
     echo "status=running" >> "${GITHUB_OUTPUT:-/dev/null}"
     exit 0
   fi
-  return $_rc
+
+  return "$rc"
 }
-apk_out_folder="apk_out"
-mkdir -p "${apk_out_folder}"
+
 pushd src
-ninja_bin="third_party/ninja/ninja"
+# 执行构建，自动适配 Android Build Server 与 Siso/Ninja 调度
+autoninja_build "${output_folder}" chrome_public_apk
 
-ninja_build "${output_folder}" chrome_public_apk
-
-# if [[ "$TARGET" != "all" ]]; then
-#   if [ "${TARGET_EXPANDED}" = "${chrome_modern_target}" ]; then
-#     if [[ "$ARCH" == "arm64" ]]; then
-#       ninja_build "${output_folder}" "${TARGET_EXPANDED}" chrome_public_apk system_webview_64_apk
-#     elif [[ "$ARCH" == "arm" ]]; then
-#       ninja_build "${output_folder}" "${TARGET_EXPANDED}" chrome_public_apk system_webview_apk
-#     else
-#       ninja_build "${output_folder}" "${TARGET_EXPANDED}" chrome_public_apk
-#     fi
-#   else
-#     ninja_build "${output_folder}" "${TARGET_EXPANDED}"
-#   fi
-#   if [[ "$TARGET" == "trichrome_chrome_bundle_target" ]] || [[ "$TARGET" == "chrome_modern_target" ]] || [[ "$TARGET" == "trichrome_chrome_apk_target" ]] || [[ "$TARGET" == "trichrome_webview_target" ]]; then
-#     if [ -f "$uc_keystore" ]; then
-#       ../bundle_generate_apk.sh -o "${output_folder}" -a "${ARCH}" -t "${TARGET_EXPANDED}"
-#     fi
-#   fi
-#   if [[ "$TARGET" != "webview_target" ]]; then
-#     _apk_src="${output_folder}/apks/release"
-#     [ -d "${_apk_src}" ] || _apk_src="${output_folder}/apks"
-#     find "${_apk_src}" -maxdepth 1 -iname "*.apk" -exec cp -f {} ../"${apk_out_folder}" \;
-#   else
-#     find ${output_folder}/apks -iname "*.apk" -exec cp -f {} ../"${apk_out_folder}" \;
-#   fi
-# else
-#   ninja_build "out/Default" "$chrome_modern_target"
-#   if [ -f "$uc_keystore" ]; then
-#     ../bundle_generate_apk.sh -o "${output_folder}" -a "${ARCH}" -t "$chrome_modern_target"
-#   fi
-#   ninja_build "out/Default" "$webview_target"
-#   ninja_build "out/Default" "$trichrome_webview_target"
-#   find ${output_folder}/apks/release -iname "*.apk" -exec cp -f {} ../"${apk_out_folder}" \;
-
-#   # arm64+TriChrome needs to be run separately, otherwise it will fail
-#   if [[ "$ARCH" != "arm64" ]]; then
-#     ninja_build "${output_folder}" "$trichrome_chrome_apk_target"
-#     find ${output_folder}/apks/release -iname "*.apk" -exec cp -f {} ../"${apk_out_folder}" \;
-#   fi
-# fi
 popd
+
 
 printf 'session    %s  run %s  BUILD COMPLETE\n' \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${GITHUB_RUN_NUMBER:-local}" >> "$stamp_file"
