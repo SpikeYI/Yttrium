@@ -140,7 +140,7 @@ function prepare_repos {
   export PATH="$(pwd -P)/depot_tools:$PATH"
   export PYTHONPATH="$(pwd -P)/depot_tools${PYTHONPATH:+:$PYTHONPATH}"
   path_modified=true
-  ln -sfn depot_tools src/third_party/depot_tools
+  ln -sfn "$(pwd -P)/depot_tools" src/third_party/depot_tools
 
   git config --global http.lowSpeedTime 120
   DEPOT_TOOLS_UPDATE=0 gclient sync -D --no-history --nohooks --shallow
@@ -241,7 +241,7 @@ if [ "$RESUME" != y ]; then
   git am --whitespace=nowarn --keep-non-patch ../Vanadium/patches/*.patch
   source ../patch.sh
 
-  gclient runhooks
+  DEPOT_TOOLS_UPDATE=0 gclient runhooks
 
   mkdir -p "${output_folder}"
   cp ../args.gn "${output_folder}"/args.gn
