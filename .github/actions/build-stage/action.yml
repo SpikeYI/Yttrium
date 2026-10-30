@@ -117,7 +117,7 @@ runs:
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: ${{ inputs.architecture }}
-        path: /mnt/ugc/src/out/Default/chrome_public_apk
+        path: /mnt/ugc/src/out/Default/**/*.apk
         retention-days: 14
         overwrite: true
         archive: false
