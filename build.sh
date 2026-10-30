@@ -237,8 +237,9 @@ if [ "$RESUME" != y ]; then
   # https://grapheneos.org/build#browser-and-webview
   rm -rf Vanadium/patches/*trichrome-{apk-build-targets,browser-apk-targets}.patch
   rm -rf Vanadium/patches/*{detailed,supported}-language*.patch
+  rm -rf Vanadium/patches/*javascript-optimizer-{site-setting,settings-UI}.patch
   rm -rf Vanadium/patches/*component-updates.patch
-  rm -rf Vanadium/patches/*{pdf,PDF,configs-from-config-app,config-app-parsing}*.patch
+  rm -rf Vanadium/patches/*{pdf,PDF,for-content-public,toolbar-button,configs-from-config-app,config-app-parsing,new-tab-card,predictive-back}*.patch
 
   pushd src
   git am --whitespace=nowarn --keep-non-patch ../Vanadium/patches/*.patch
