@@ -187,7 +187,9 @@ if [ "$RESUME" = y ]; then
         echo "  stamped:  $have"
         echo "  current:  $want"
         echo "  Start a clean build instead (resume: no)."
-        exit 8
+        # exit 8
+        sed -i 's/\<TabPreferencesUtils\>/org.chromium.chrome.browser.TabPreferencesUtils/g' src/chrome/android/java/src/org/chromium/chrome/browser/customtabs/CustomTabDelegateFactory.java
+        sed -i 's/\<TabPreferencesUtils\>/org.chromium.chrome.browser.TabPreferencesUtils/g' src/chrome/android/java/src/org/chromium/chrome/browser/externalnav/ExternalNavigationDelegateImpl.java
     fi
     echo "=== resuming verified build ==="
     cat "$stamp_file"

@@ -85,7 +85,7 @@ sed -i '/\/\*\* Sets the delegate instance. \*\//i\
 ' chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPageLayout.java
 
 # disable-external-intent-requests
-sed -i '/ExternalNavigationParams params, Intent intent) {/,/^    }$/s#return false;#if ("tel".equals(params.getUrl().getScheme())) return false;\n        return !TabPreferencesUtils.shouldOpenLinksInIncognito();#' chrome/android/java/src/org/chromium/chrome/browser/externalnav/ExternalNavigationDelegateImpl.java
-sed -i '/public boolean shouldDisableAllExternalIntents() {/a\            if (!TabPreferencesUtils.shouldOpenLinksInIncognito()) return true;' chrome/android/java/src/org/chromium/chrome/browser/customtabs/CustomTabDelegateFactory.java
+sed -i '/ExternalNavigationParams params, Intent intent) {/,/^    }$/s#return false;#if ("tel".equals(params.getUrl().getScheme())) return false;\n        return !org.chromium.chrome.browser.TabPreferencesUtils.shouldOpenLinksInIncognito();#' chrome/android/java/src/org/chromium/chrome/browser/externalnav/ExternalNavigationDelegateImpl.java
+sed -i '/public boolean shouldDisableAllExternalIntents() {/a\            if (!org.chromium.chrome.browser.TabPreferencesUtils.shouldOpenLinksInIncognito()) return true;' chrome/android/java/src/org/chromium/chrome/browser/customtabs/CustomTabDelegateFactory.java
 
 export PATCHED=1
